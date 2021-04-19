@@ -5,9 +5,13 @@ import * as React from 'react';
 
 import Colors from '../constants/Colors';
 import useColorScheme from '../hooks/useColorScheme';
-import TabOneScreen from '../screens/TabOneScreen';
 import TabTwoScreen from '../screens/TabTwoScreen';
-import { BottomTabParamList, TabOneParamList, TabTwoParamList } from '../types';
+import { BottomTabParamList, TabTwoParamList, WorkoutTabParamList } from '../types';
+import WorkoutTabScreen from '../screens/WorkoutTabScreen';
+import GetStartedScreen from '../screens/GetStartedScreen';
+import WeeklyPlanScreen from '../screens/WeeklyPlanScreen';
+import PerformWorkoutScreen from '../screens/PerformWorkoutScreen';
+import EditCompletedWorkoutScreen from '../screens/EditCompletedWorkoutScreen';
 
 const BottomTab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -16,13 +20,14 @@ export default function BottomTabNavigator() {
 
   return (
     <BottomTab.Navigator
-      initialRouteName="TabOne"
+      initialRouteName="WorkoutTab"
       tabBarOptions={{ activeTintColor: Colors[colorScheme].tint }}>
       <BottomTab.Screen
-        name="TabOne"
-        component={TabOneNavigator}
+        name="WorkoutTab"
+        component={WorkoutTabNavigator}
         options={{
-          tabBarIcon: ({ color }) => <TabBarIcon name="ios-code" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="bicycle-outline" color={color} />,
+          title: 'Workout',
         }}
       />
       <BottomTab.Screen
@@ -44,17 +49,32 @@ function TabBarIcon(props: { name: React.ComponentProps<typeof Ionicons>['name']
 
 // Each tab has its own navigation stack, you can read more about this pattern here:
 // https://reactnavigation.org/docs/tab-based-navigation#a-stack-navigator-for-each-tab
-const TabOneStack = createStackNavigator<TabOneParamList>();
+const WorkoutTabStack = createStackNavigator<WorkoutTabParamList>();
 
-function TabOneNavigator() {
+function WorkoutTabNavigator() {
   return (
-    <TabOneStack.Navigator>
-      <TabOneStack.Screen
-        name="TabOneScreen"
-        component={TabOneScreen}
-        options={{ headerTitle: 'Next Workout' }}
+    <WorkoutTabStack.Navigator initialRouteName="GetStartedScreen">
+      <WorkoutTabStack.Screen
+        name="GetStartedScreen"
+        component={GetStartedScreen}
+        options={{ headerTitle: 'Get Started' }}
       />
-    </TabOneStack.Navigator>
+      <WorkoutTabStack.Screen
+        name="WeeklyPlanScreen"
+        component={WeeklyPlanScreen}
+        options={{headerTitle: 'Weekly Workout Plan'}}
+      />
+      <WorkoutTabStack.Screen
+        name="PerformWorkoutScreen"
+        component={PerformWorkoutScreen}
+        options={{headerTitle: 'Perform workout'}}
+      />
+      <WorkoutTabStack.Screen
+        name="EditCompletedWorkoutScreen"
+        component={EditCompletedWorkoutScreen}
+        options={{headerTitle: 'Editing completed workout'}}
+      />
+    </WorkoutTabStack.Navigator>
   );
 }
 

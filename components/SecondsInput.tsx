@@ -8,7 +8,8 @@ interface ISecondsInputProps {
   autoFocus?: boolean
 }
 
-function pad(n: number) {
+function pad(nRaw: number) {
+  const n = Math.floor(nRaw)
   if (n < 10) {
     return `0${n}`
   }
@@ -28,15 +29,18 @@ const SecondsInput: React.FC<ISecondsInputProps> = ({initialValue, onChange, aut
 
   return (
     <TextInput style={styles.input} keyboardType="numeric" value={raw} onChangeText={text => {
-      // Yikes
-      if (text.length < 5) {
-        const newText = [...new Array(5 - text.length)].map(_ => "0").join("").concat(text.replace(':', ''))
-        setRaw(newText.substr(0, 2) + ':' + newText.substr(2))
-      } else {
-        const newText = text.replace(':', '').substr(text.length - 5)
-        setRaw(newText.substr(0, 2) + ':' + newText.substr(2))
-      }
-    }} onBlur={submitChanges} onSubmitEditing={() => onSubmit ? onSubmit() : null} onEndEditing={submitChanges} autoFocus={autoFocus} />
+        // Yikes
+        if (text.length < 5) {
+          const newText = [...new Array(5 - text.length)].map(_ => "0").join("").concat(text.replace(':', ''))
+          setRaw(newText.substr(0, 2) + ':' + newText.substr(2))
+        } else {
+          const newText = text.replace(':', '').substr(text.length - 5)
+          setRaw(newText.substr(0, 2) + ':' + newText.substr(2))
+        }
+      }}
+      onBlur={submitChanges} onSubmitEditing={() => onSubmit ? onSubmit() : null} onEndEditing={submitChanges} autoFocus={autoFocus}
+      selection={{start: 5, end: 5}}
+    />
   )
 }
 

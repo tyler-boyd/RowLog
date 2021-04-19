@@ -1,9 +1,10 @@
 import { beginnerPlan, Meter, Seconds, WeeklyPlan } from "../constants/RowingPlan";
+import { addOneWeek } from "../utils/dateUtils";
 
 export interface CompletedWorkout {
   weeklyPlanId: number
   workoutId: number
-  completedAt: Date
+  completedAt: string
   time: Seconds
   distance: Meter
 }
@@ -13,7 +14,7 @@ export interface WorkoutLog {
   completedWorkouts: CompletedWorkout[]
   currentWeeklyPlanId: number
   nextWorkoutId?: number
-  nextWeekStartsAt: Date
+  nextWeekStartsAt: string
 }
 
 export const buildDefaultWorkoutLog = () => {
@@ -22,7 +23,7 @@ export const buildDefaultWorkoutLog = () => {
     completedWorkouts: [],
     currentWeeklyPlanId: beginnerPlan[0].id,
     nextWorkoutId: beginnerPlan[0].mandatoryWorkouts[0].id,
-    nextWeekStartsAt: new Date(new Date().setDate(new Date().getDate() + 7)),
+    nextWeekStartsAt: addOneWeek(new Date()).toISOString(),
   }
 
   return workoutLog

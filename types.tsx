@@ -4,13 +4,20 @@ export type RootStackParamList = {
 };
 
 export type BottomTabParamList = {
-  TabOne: undefined;
+  WorkoutTab: undefined;
   TabTwo: undefined;
 };
 
-export type TabOneParamList = {
-  TabOneScreen: undefined;
+export type WorkoutTabParamList = {
+  GetStartedScreen: undefined
+  WeeklyPlanScreen: undefined
+  PerformWorkoutScreen: PerformWorkoutScreenParamList | undefined
+  EditCompletedWorkoutScreen: {workoutId: number} | undefined
 };
+
+export type PerformWorkoutScreenParamList = {
+  workoutId: number
+}
 
 export type TabTwoParamList = {
   TabTwoScreen: undefined;

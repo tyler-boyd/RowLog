@@ -4,23 +4,9 @@ import { Button, StyleSheet, TextInput } from 'react-native'
 import { useDispatch, useSelector } from 'react-redux'
 import { Meter, Seconds, Workout } from '../constants/RowingPlan'
 import { RootState, WorkoutLogSlice } from '../state/reducers'
-import { dayOfWeek } from '../utils/dateUtils'
 import SecondsInput from './SecondsInput'
 import Test from './Test'
 import { View, Text } from './Themed'
-
-function workoutName(workout: Workout): string {
-  switch(workout.type) {
-    case "DistanceWorkout":
-      return `${workout.distance}m`
-    case "DistanceIntervalWorkout":
-      return `${workout.repetitions} x ${workout.distance}m / ${workout.rest} min rest`
-    case "TimeWorkout":
-      return `${workout.time} min`
-    case "TimeIntervalWorkout":
-      return `${workout.repetitions} x ${workout.time} min / ${workout.rest} min rest`
-  }
-}
 
 interface IDoWorkoutProps {
   workout: Workout
@@ -33,7 +19,7 @@ const DoWorkout: React.FC<IDoWorkoutProps> = ({workout, complete}) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Doing workout: {workoutName(workout)}</Text>
-      <Test />
+      <Test workout={workout} complete={complete} />
       <View style={{flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20}}>
         <Text style={{fontWeight: 'bold', fontSize: 16}}>{isTimeWorkout ? 'Distance (m)' : 'Time'}</Text>
         {isTimeWorkout ?
@@ -79,45 +65,6 @@ export default function NextWorkout() {
       setDoingWorkout(false)
     }} />
   }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to week {weeklyPlan.id} of your plan!</Text>
-      <View>
-        <Text style={styles.heading}>Mandatory workouts:</Text>
-        {weeklyPlan.mandatoryWorkouts.map((workout, idx) => {
-          return (
-            <View key={idx} style={styles.checkboxContainer}>
-              <CheckBox disabled={true} value={!!workoutLog.completedWorkouts.find(w => w.workoutId === workout.id)} />
-              <Text style={styles.label}>
-                {workoutName(workout)}
-              </Text>
-            </View>
-          )
-        })}
-      </View>
-      <View>
-        <Text style={styles.heading}>Optional workouts:</Text>
-        {weeklyPlan.optionalWorkouts.map((workout, idx) => {
-          return (
-            <View key={idx} style={styles.checkboxContainer}>
-              <CheckBox disabled={true} value={!!workoutLog.completedWorkouts.find(w => w.workoutId === workout.id)} />
-              <Text style={styles.label}>
-                {workoutName(workout)}
-              </Text>
-            </View>
-          )
-        })}
-      </View>
-      {nextWorkout ? <View style={styles.title}>
-        <Button title={`Start next workout (${workoutName(nextWorkout)})`} onPress={() => setDoingWorkout(true)} />
-      </View> : <View style={{alignItems: 'center'}}>
-        <Text style={styles.title}>All workouts complete!</Text>
-        <Text style={styles.title}>Workouts continue on {dayOfWeek(workoutLog.nextWeekStartsAt)}</Text>
-      </View>}
-
-    </View>
-  )
 }
 
 const styles = StyleSheet.create({
