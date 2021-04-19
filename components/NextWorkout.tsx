@@ -1,11 +1,10 @@
-import CheckBox from '@react-native-community/checkbox'
 import * as React from 'react'
 import { Button, StyleSheet, TextInput } from 'react-native'
 import { useDispatch, useSelector } from 'react-redux'
 import { Meter, Seconds, Workout } from '../constants/RowingPlan'
-import { RootState, WorkoutLogSlice } from '../state/reducers'
+import { WorkoutLogSlice } from '../state/reducers'
 import SecondsInput from './SecondsInput'
-import Test from './Test'
+import StartWorkoutOnPM from './StartWorkoutOnPM'
 import { View, Text } from './Themed'
 
 interface IDoWorkoutProps {
@@ -19,7 +18,7 @@ const DoWorkout: React.FC<IDoWorkoutProps> = ({workout, complete}) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Doing workout: {workoutName(workout)}</Text>
-      <Test workout={workout} complete={complete} />
+      <StartWorkoutOnPM workout={workout} complete={complete} />
       <View style={{flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20}}>
         <Text style={{fontWeight: 'bold', fontSize: 16}}>{isTimeWorkout ? 'Distance (m)' : 'Time'}</Text>
         {isTimeWorkout ?

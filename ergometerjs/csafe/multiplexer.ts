@@ -122,18 +122,12 @@ interface MessageInfo {
 export default class CsafeMultiplexer {
   private queue: MessageInfo[] = []
   private state: "ready" | "busy" = "ready"
-  private device: Device
+  private writeMessage: (message: string) => Promise<void>
 
   public onStateChange: (state: number) => void = () => { }
 
-  constructor(device: Device) {
-    this.device = device
-  }
-
-  addResponseListener() {
-    this.device.monitorCharacteristicForService(
-      PMCONTROL_SERVICE, RECEIVE_FROM_PM_CHARACTERISIC, this.receive.bind(this)
-    )
+  constructor(writeMessage: (message: string) => Promise<void>) {
+    this.writeMessage = writeMessage
   }
 
   async send(command: CsafeCmd): Promise<CsafeResponse> {
@@ -160,21 +154,17 @@ export default class CsafeMultiplexer {
 
     try {
       console.log(`[CSAFE] Sending message: ${message}`)
-      await this.device.writeCharacteristicWithoutResponseForService(
-        PMCONTROL_SERVICE,
-        TRANSMIT_TO_PM_CHARACTERISIC,
-        message
-      )
+      await this.writeMessage(message)
     } catch (err) {
       this.reject(err)
     }
   }
 
-  public async receive(err: BleError | null, c: Characteristic | null) {
+  public async receive(err: BleError | null, c: string | null) {
     try {
       if (err) throw err
-      if (!c?.value) return
-      const bytes = Buffer.from(c.value, 'base64').map(x => x)
+      if (!c) return
+      const bytes = Buffer.from(c, 'base64').map(x => x)
       console.log(`[CSAFE] Received message of ${bytes.length} bytes`)
       if (bytes[0] !== StandardFrameStartFlag) {
         throw new Error(`First byte was 0x${bytes[0].toString(16)}, not 0xF1`)
@@ -220,4 +210,8 @@ export default class CsafeMultiplexer {
     this.state = 'ready'
     await this.trySend()
   }
+}
+
+export const pvt = {
+  makePacket, serializeCmd,
 }

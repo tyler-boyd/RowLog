@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Button } from 'react-native'
+import { Button, PermissionsAndroid } from 'react-native'
 import { Workout } from '../constants/RowingPlan'
 
 import { getMonitor } from '../ergometerjs/monitor'
@@ -10,7 +10,7 @@ interface Props {
   complete: (time: number, distance: number) => void
 }
 
-const Test: React.FC<Props> = ({ workout, complete: completeRaw }) => {
+const StartWorkoutOnPM: React.FC<Props> = ({ workout, complete: completeRaw }) => {
   const monitor = getMonitor()
   const [time, setTime] = useState(0)
   const [distance, setDistance] = useState(0)
@@ -18,6 +18,20 @@ const Test: React.FC<Props> = ({ workout, complete: completeRaw }) => {
   complete.current = completeRaw
   const [status, setStatus] = useState<'idle' | 'connecting' | 'rowing'>('idle')
   const startWorkout = async () => {
+    const result = await PermissionsAndroid.request(
+      "android.permission.ACCESS_COARSE_LOCATION",
+      {
+        title: 'RowLog Location Permission',
+        message: 'RowLog needs the "coarse location" permission in order' +
+          ' to connect to the PM with BluetoothLE.',
+        buttonNeutral: 'Ask me later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
+      }
+    )
+    if (result !== 'granted') {
+      return
+    }
     setStatus('connecting')
     try {
       switch(workout.type) {
@@ -68,4 +82,4 @@ const Test: React.FC<Props> = ({ workout, complete: completeRaw }) => {
   </>
 }
 
-export default Test
+export default StartWorkoutOnPM

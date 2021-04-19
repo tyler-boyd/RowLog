@@ -3,7 +3,7 @@ import * as React from 'react'
 import { Button, StyleSheet, TextInput } from 'react-native'
 import { useDispatch } from 'react-redux'
 import SecondsInput from '../components/SecondsInput'
-import Test from '../components/Test'
+import StartWorkoutOnPM from '../components/StartWorkoutOnPM'
 import { Text, View } from '../components/Themed'
 import { WorkoutLogSlice } from '../state/reducers'
 import { useWorkoutLog } from '../state/store'
@@ -33,7 +33,7 @@ const PerformWorkoutScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Doing workout: {workoutName(workout)}</Text>
-      <Test workout={workout} complete={complete} />
+      <StartWorkoutOnPM workout={workout} complete={complete} />
       <View style={{flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20}}>
         <Text style={{fontWeight: 'bold', fontSize: 16}}>{isTimeWorkout ? 'Distance (m)' : 'Time'}</Text>
         {isTimeWorkout ?
