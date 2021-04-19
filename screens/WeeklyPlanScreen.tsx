@@ -51,8 +51,7 @@ export default function WeeklyPlanScreen() {
           return <Text style={styles.heading}>{title}</Text>
         }}
       />
-      {nextWorkout ? <View>
-      </View> : <View style={{ alignItems: 'center' }}>
+      {!nextWorkout && <View style={{ alignItems: 'center' }}>
         <Text style={styles.title}>All workouts complete!</Text>
         <Text style={styles.title}>Workouts continue on {dayOfWeek(new Date(workoutLog.nextWeekStartsAt))}</Text>
       </View>}

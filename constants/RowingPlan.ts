@@ -62,4 +62,9 @@ export const beginnerPlan: WeeklyPlan[] = [
     mandatoryWorkouts: [distanceWorkout(5000), distanceIntervalWorkout(6, 500, 2), distanceWorkout(5000)],
     optionalWorkouts: [timeWorkout(20), timeIntervalWorkout(2, 10, 2)]
   },
+  {
+    id: 2,
+    mandatoryWorkouts: [distanceWorkout(5500), distanceIntervalWorkout(4, 750, 2), distanceWorkout(5500)],
+    optionalWorkouts: [timeWorkout(20), timeIntervalWorkout(3, 8, 20)],
+  },
 ]

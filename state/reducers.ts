@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { beginnerPlan } from "../constants/RowingPlan";
 import { addOneWeek } from "../utils/dateUtils";
 import { WorkoutLog } from "./AppState";
 
@@ -45,6 +46,7 @@ export const WorkoutLogSlice = createSlice({
     },
     moveToNextWeek: (state) => {
       if (!state) return
+      state.plan = beginnerPlan
       if (new Date() > new Date(state.nextWeekStartsAt)) {
         state.nextWeekStartsAt = addOneWeek(new Date()).toISOString()
       }
