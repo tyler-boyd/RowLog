@@ -1,7 +1,7 @@
 import { BleError, BleManager, Characteristic, Device, ScanMode } from "react-native-ble-plx";
 import { readBytesAsInt } from "./utils";
 import { Buffer } from 'buffer'
-import CsafeMultiplexer from "./csafe/multiplexer";
+import CsafeMultiplexer, { ControlService } from "./csafe/multiplexer";
 import { CsafeCmd, CsafeCommands } from "./csafe/commands";
 
 const RowingService = {
@@ -80,8 +80,21 @@ export default class Monitor {
           try {
             this.device = await device.connect()
             await device.discoverAllServicesAndCharacteristics()
-            this.conn = new CsafeMultiplexer(device)
-            this.conn.addResponseListener()
+            this.conn = new CsafeMultiplexer(async message => {
+              await this.device.writeCharacteristicWithoutResponseForService(
+                ControlService.uuid,
+                ControlService.characteristics.transmit,
+                Buffer.from(message).toString('base64')
+              )
+            })
+            this.device.monitorCharacteristicForService(
+              ControlService.uuid,
+              ControlService.characteristics.receive,
+              (err, c) => {
+                const bytes = c?.value ? [...Buffer.from(c.value, 'base64')] : null
+                this.conn.receive(err, bytes)
+              }
+            )
             this.device.monitorCharacteristicForService(
               RowingService.uuid,
               RowingService.characteristics.rowingStatus,
@@ -124,33 +137,22 @@ export default class Monitor {
     await this.startWorkout(CsafeCommands.setTWork(time))
   }
 
-  // Note: this doesn't work, and is probably impossible
-  async startIntervalWorkout(distance: number) {
+  async startDistanceIntervalWorkout(distance: number, restDuration: number) {
     await this.initialize()
-    const commands: CsafeCmd[] = [
+    await this.conn.send(
       CsafeCommands.reset(),
-      // CsafeCommands.setWorkoutType(7),
-      // CsafeCommands.setHorizontal(distance),
-      // CsafeCommands.setWorkoutIntervalCount(5),
-      CsafeCommands.setProgram(5),
-      CsafeCommands.setHorizontal(250),
-      CsafeCommands.setRestDuration(44),
-      CsafeCommands.goInUse(),
-    ]
-    for (const command of commands) { await this.conn.send(command) }
+      CsafeCommands.startDistanceIntervalWorkout(distance, restDuration),
+    )
   }
 
   private async startWorkout(...extraCommands: CsafeCmd[]) {
     await this.initialize()
-    const commands: CsafeCmd[] = [
+    await this.conn.send(
       CsafeCommands.reset(),
       ...extraCommands,
       CsafeCommands.setProgram(),
       CsafeCommands.goInUse()
-    ]
-    for (const command of commands) {
-      await this.conn.send(command)
-    }
+    )
   }
 
   private onRowingStatusUpdate(err: BleError | null, c: Characteristic | null) {

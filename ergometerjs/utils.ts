@@ -6,11 +6,11 @@ export function readBytesAsInt(...bytes: number[]): number {
 }
 
 // Converts an integer to a little-endian byte array
-export function writeIntAsBytes(n: number, bytes: number): number[] {
+export function writeIntAsBytes(n: number, bytes: number, bigEndian = false): number[] {
   const ret: number[] = []
   for(let i = 0; i < bytes; i++) {
     ret.push((n >> (8*i)) & 0xFF)
   }
 
-  return ret
+  return bigEndian ? ret.reverse() : ret
 }

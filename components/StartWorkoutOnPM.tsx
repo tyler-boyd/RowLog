@@ -41,6 +41,9 @@ const StartWorkoutOnPM: React.FC<Props> = ({ workout, complete: completeRaw }) =
         case 'TimeWorkout':
           await monitor.startTimeWorkout(workout.time)
           break
+        case 'DistanceIntervalWorkout':
+          await monitor.startDistanceIntervalWorkout(workout.distance, workout.rest)
+          break
       }
       setStatus('rowing')
     } catch (err) {
@@ -63,6 +66,10 @@ const StartWorkoutOnPM: React.FC<Props> = ({ workout, complete: completeRaw }) =
       }
       complete.current(time, distance)
     })
+    return () => {
+      monitor.onRowingStatusChange(() => {})
+      monitor.onWorkoutCompleted(() => {})
+    }
   }, [])
 
   if (status === 'idle') {

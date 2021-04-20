@@ -2,6 +2,7 @@ export type CsafeCmd = ResetCmd | AutoUploadCmd |
   GoInUseCmd | SetProgramCmd | SetTWorkCmd |
   SetHorizontalCmd | GetForcePlotCmd | GetWorkDistanceCmd
   | SetWorkoutTypeCmd | SetRestDurationCmd | SetWorkoutInvervalCountCmd
+  | StartDistanceIntervalWorkoutCmd | CustomCmd
 
 export const CsafeCommands = {
   reset(): ResetCmd {
@@ -48,7 +49,13 @@ export const CsafeCommands = {
   },
   setWorkoutIntervalCount(count: number): SetWorkoutInvervalCountCmd {
     return { type: 'SetWorkoutIntervalCount', count }
-  }
+  },
+  startDistanceIntervalWorkout(distance: number, restDuration: number): StartDistanceIntervalWorkoutCmd {
+    return { type: 'StartDistanceIntervalWorkout', distance, restDuration }
+  },
+  custom(...bytes: number[]): CustomCmd {
+    return { type: 'Custom', bytes }
+  },
 }
 
 export interface SetWorkoutInvervalCountCmd {
@@ -109,4 +116,15 @@ export interface SetSplitCmd {
 export interface SetWorkoutTypeCmd {
   type: 'SetWorkoutType'
   workoutType: number
+}
+
+export interface StartDistanceIntervalWorkoutCmd {
+  type: 'StartDistanceIntervalWorkout'
+  distance: number
+  restDuration: number
+}
+
+export interface CustomCmd {
+  type: 'Custom'
+  bytes: number[]
 }

@@ -1,11 +1,13 @@
-import { Buffer } from 'buffer'
-import { BleError, Characteristic, Device } from 'react-native-ble-plx'
 import { writeIntAsBytes } from '../utils'
 import { CsafeCmd } from './commands'
 
-const PMCONTROL_SERVICE = "ce060020-43e5-11e4-916c-0800200c9a66"
-const TRANSMIT_TO_PM_CHARACTERISIC = "ce060021-43e5-11e4-916c-0800200c9a66"
-const RECEIVE_FROM_PM_CHARACTERISIC = "ce060022-43e5-11e4-916c-0800200c9a66"
+export const ControlService = {
+  uuid: 'ce060020-43e5-11e4-916c-0800200c9a66',
+  characteristics: {
+    transmit: 'ce060021-43e5-11e4-916c-0800200c9a66',
+    receive: 'ce060022-43e5-11e4-916c-0800200c9a66'
+  }
+}
 
 const ExtendedFrameStartFlag = 0xF0
 const StandardFrameStartFlag = 0xF1
@@ -57,6 +59,11 @@ const wrap = (cmd: number[]): number[] => {
   return [0x1A, cmd.length, ...cmd]
 }
 
+// Wraps a C2-specific message in a proprietary
+const c2Wrap = (...body: number[]): number[] => {
+  return [0x76, body.length, ...body]
+}
+
 const serializeCmd = (cmd: CsafeCmd): number[] => {
   const contents: number[] = []
   switch (cmd.type) {
@@ -93,92 +100,136 @@ const serializeCmd = (cmd: CsafeCmd): number[] => {
     case 'SetWorkoutIntervalCount':
       contents.push(...wrap([0x18, 1, cmd.count]))
       break
+    case 'StartDistanceIntervalWorkout':
+      contents.push(...c2Wrap(
+        0x01, // CSAFE_PM_SET_WORKOUTTYPE
+        0x01,
+        0x07, // CSAFE_PM_SET_WORKOUTTYPE
+        0x03, // CSAFE_PM_SET_WORKOUTDURATION
+        0x05,
+        0x80, // WORKOUT_DURATION_IDENTIFIER_DISTANCE
+        ...writeIntAsBytes(cmd.distance, 4, true), // distance (Big Endian)
+        0x04, // CSAFE_PM_SET_RESTDURATION
+        0x02,
+        ...writeIntAsBytes(cmd.restDuration, 2, true), // rest time seconds (Big Endian)
+        0x14, // CSAFE_PM_CONFIGURE_WORKOUT
+        0x01, 0x01,
+        0x13, // CSAFE_PM_SET_SCREENSTATE
+        0x02, 0x01, 0x01,
+      ))
+      break
+    case 'Custom':
+      contents.push(...cmd.bytes)
+      break
     default:
       no(cmd)
   }
   return contents
 }
 
-const makePacket = (cmd: CsafeCmd): string => {
-  const ret: number[] = []
+const makePackets = (commands: CsafeCmd[]): number[][] => {
+  const bytes: number[] = []
 
-  ret.push(StandardFrameStartFlag)
-  const contents = serializeCmd(cmd)
-  ret.push(...stuffed(...contents))
-  ret.push(...stuffed(checksum(contents)))
-  ret.push(StopFrameFlag)
-  return Buffer.from(ret).toString('base64')
+  bytes.push(StandardFrameStartFlag)
+  const contents = commands.flatMap(cmd => serializeCmd(cmd))
+  bytes.push(...stuffed(...contents))
+  bytes.push(...stuffed(checksum(contents)))
+  bytes.push(StopFrameFlag)
+  const packets: number[][] = []
+  for (let idx = 0; idx < bytes.length;) {
+    packets.push(bytes.slice(idx, idx+20))
+    idx += 20
+  }
+  return packets
 }
 
 function no(_: never): never { throw new Error("NEVER") }
 
-interface MessageInfo {
-  command: CsafeCmd
-  serialized: number[]
+// Represents a request from the user to send one or more messages
+interface CsafeQueueEntry {
+  commands: CsafeCmd[]
+  timeout: ReturnType<typeof setTimeout>
   res: (result: CsafeResponse) => void
   rej: (error: Error) => void
 }
 
+// Multiplexer/state machine which "owns" the bidirectional CSAFE communication.
+// Only this class should send messages, and all messages + errors received from
+// the PM must be sent to the multiplexer (by calling receive(err, data))
 export default class CsafeMultiplexer {
-  private queue: MessageInfo[] = []
+  private queue: CsafeQueueEntry[] = []
   private state: "ready" | "busy" = "ready"
-  private writeMessage: (message: string) => Promise<void>
+  private writeMessage: (message: number[]) => Promise<void>
+  private receivedBytes: number[] = []
+  public static TIMEOUT = 5 * 1000
+  public static DEBUG = false
 
-  public onStateChange: (state: number) => void = () => { }
-
-  constructor(writeMessage: (message: string) => Promise<void>) {
+  constructor(writeMessage: (message: number[]) => Promise<void>) {
     this.writeMessage = writeMessage
   }
 
-  async send(command: CsafeCmd): Promise<CsafeResponse> {
+  async send(...commands: CsafeCmd[]): Promise<CsafeResponse> {
     return new Promise((res, rej) => {
-      this.queue.push({ command, serialized: serializeCmd(command), res, rej })
+      this.queue.push({ commands, res, rej, timeout: setTimeout(() => this.timeout(), CsafeMultiplexer.TIMEOUT) })
       this.trySend()
     })
   }
 
+  // Called when we don't receive a response from the PM within $timeout
+  private timeout() {
+    this.debug("TIMEOUT")
+    this.reject(new Error('Never received a response from the PM'))
+    this.state = 'ready'
+    this.trySend()
+  }
   private resolve(res: CsafeResponse) {
     this.queue[0].res(res)
+    clearTimeout(this.queue[0].timeout)
     this.queue.splice(0)
   }
   private reject(err: Error) {
     this.queue[0].rej(err)
+    clearTimeout(this.queue[0].timeout)
     this.queue.splice(0)
+  }
+  private debug(message: string, ...args: any) {
+    if (!CsafeMultiplexer.DEBUG) return
+    console.log(`[CSAFE] ${message}`, ...args)
   }
 
   private async trySend() {
     if (this.queue.length === 0 || this.state !== 'ready') return
 
     this.state = 'busy'
-    const message = makePacket(this.queue[0].command)
-
     try {
-      console.log(`[CSAFE] Sending message: ${message}`)
-      await this.writeMessage(message)
+      const packets = makePackets(this.queue[0].commands)
+
+      for (const packet of packets) {
+        await this.writeMessage(packet)
+      }
     } catch (err) {
       this.reject(err)
     }
   }
 
-  public async receive(err: BleError | null, c: string | null) {
+  public receive(err: Error | null, bytes: number[] | null) {
     try {
       if (err) throw err
-      if (!c) return
-      const bytes = Buffer.from(c, 'base64').map(x => x)
-      console.log(`[CSAFE] Received message of ${bytes.length} bytes`)
-      if (bytes[0] !== StandardFrameStartFlag) {
-        throw new Error(`First byte was 0x${bytes[0].toString(16)}, not 0xF1`)
+      if (!bytes) return
+      if (bytes[0] === StandardFrameStartFlag) {
+        this.receivedBytes = []
       }
+      this.receivedBytes.push(...Array.from(bytes))
       if (bytes[bytes.length - 1] !== StopFrameFlag) {
-        throw new Error(`Last byte was 0x${bytes[0].toString(16)}, not 0xF2`)
+        return
       }
-      const dataAndChecksum = unstuffed(Array.from(bytes.slice(1, -1)))
+      const dataAndChecksum = unstuffed(Array.from(this.receivedBytes.slice(1, -1)))
       if (dataAndChecksum.length < 2) {
         throw new Error(`Message is too small: ${dataAndChecksum.length}`)
       }
-      console.log(`[CSAFE] dataAndChecksum:`, dataAndChecksum.map(n => n.toString(16)).join(' '))
+      this.debug(`Received message body from PM:`, dataAndChecksum.map(n => n.toString(16)).join(' '))
       if (dataAndChecksum.reduce((c, n) => c ^ n, 0) !== 0) {
-        console.error("[CSAFE] Checksum doesn't match:", dataAndChecksum.map(n => n.toString(16)).join(' '))
+        this.debug("Checksum doesn't match:", dataAndChecksum.reduce((c, n) => c ^ n, 0))
         throw new Error(`Checksum doesn't match`)
       }
       const statusByte = dataAndChecksum[0]
@@ -197,21 +248,16 @@ export default class CsafeMultiplexer {
         structures,
       }
       if (!this.queue[0]) {
-        console.error(`[CSAFE] Received unexpected message ${JSON.stringify(response)}`)
+        this.debug(`Received unexpected message ${JSON.stringify(response)}`)
         return
       }
       this.resolve(response)
     } catch (err) {
-      console.error(`[CSAFE] Error: ${err}`)
+      this.debug(`Error: ${err}`)
       if (this.queue[0]) this.reject(err)
-      await new Promise(r => setTimeout(r, 1000))
     }
 
     this.state = 'ready'
-    await this.trySend()
+    this.trySend()
   }
-}
-
-export const pvt = {
-  makePacket, serializeCmd,
 }
